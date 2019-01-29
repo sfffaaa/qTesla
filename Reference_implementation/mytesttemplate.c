@@ -21,7 +21,9 @@
 #define NRUNS 5000
 #define NTESTS 50
 
-#define SCHEME_NAME "qTesla_p_I"
+#ifndef SCHEME_NAME
+	#error "SCHEMA_NAME should be setup"
+#endif
 
 #define MYCRYPTO_SK_LENGTH CRYPTO_SECRETKEYBYTES
 #define MYCRYPTO_PK_LENGTH CRYPTO_PUBLICKEYBYTES
