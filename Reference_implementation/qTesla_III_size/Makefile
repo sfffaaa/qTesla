@@ -33,12 +33,28 @@ ifeq "$(DEBUG)" "TRUE"
     DFLAG=-DDEBUG
 endif
 
+MY_TARGET_NAME = "_qTESLA_III_size_"
+MY_TARGET_TESTFILE_TEMPLATE = ../mytesttemplate.c
+MY_TESTFILE = tests/mytest.c
+MY_TESTEXEC_NAME = mytest_sign
+SOURCE_MYTEST = ../mytest/cpucycles.c ../mytest/speed.c $(MY_TESTFILE)
+
 OBJECTS_III_SIZE = objs_III_size/sign.o objs_III_size/pack.o objs_III_size/sample.o objs_III_size/gauss.o objs_III_size/poly.o objs_III_size/consts.o objs/fips202.o objs/random.o
 SOURCE_TEST = tests/cpucycles.c tests/test_qtesla.c
 SOURCE_KATS_GEN  = tests/rng.c tests/PQCgenKAT_sign.c
 SOURCE_KATS_TEST = tests/rng.c tests/PQCtestKAT_sign.c
 
-all: lib_III_size tests
+all: lib_III_size tests mycp
+
+mycp:
+	cp $(MY_TARGET_TESTFILE_TEMPLATE) $(MY_TESTFILE)
+
+mytest: mycp
+	$(CC) $(CFLAGS) -L./lib_III_size -D _qTESLA_III_size_ -DSCHEME_NAME=\"$(MY_TARGET_NAME)\" $(SOURCE_MYTEST) $(DFLAG) -lqtesla $(LDFLAGS) -o $(MY_TESTEXEC_NAME) $(ARM_SETTING)
+
+clean_mytest:
+	rm $(MY_TESTEXEC_NAME) $(MY_TESTFILE)
+
 
 objs_III_size/%.o: %.c
 	@mkdir -p $(@D)
@@ -58,12 +74,12 @@ lib_III_size: $(OBJECTS_III_SIZE)
 	$(AR) lib_III_size/libqtesla.a $^
 	$(RANLIB) lib_III_size/libqtesla.a
 
-tests: lib_III_size
+tests: lib_III_size mytest
 	$(CC) $(CFLAGS) -L./lib_III_size  -D _qTESLA_III_size_  $(SOURCE_TEST) $(DFLAG) -lqtesla $(LDFLAGS) -o test_qtesla-III-size $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./lib_III_size  -D _qTESLA_III_size_  $(SOURCE_KATS_GEN) $(DFLAG) -lqtesla $(LDFLAGS) -o PQCgenKAT_sign-III-size $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./lib_III_size  -D _qTESLA_III_size_  $(SOURCE_KATS_TEST) $(DFLAG) -lqtesla $(LDFLAGS) -o PQCtestKAT_sign-III-size $(ARM_SETTING)
 
 .PHONY: clean
 
-clean:
+clean: clean_mytest
 	rm -rf objs* lib* test_qtesla-* PQCgenKAT_sign-* PQCtestKAT_sign-* PQCsignKAT_qTesla*
