@@ -18,7 +18,7 @@
   #include <unistd.h>
 #endif
 
-#define MLEN 59
+#define MLEN 450
 #define NRUNS 5000
 #define NTESTS 50
 
@@ -308,7 +308,7 @@ int mycryptorun_sign()
     print_results("verify: ", tverify, TEST_LOOPS);
     printf("average length: %llu\n", allCtLen / TEST_LOOPS);
     printf("average length: %u\n", myCtLen);
-
+	printf("my json plaintext %lu\n", strlen(TEST_JSON_PLAINTEXT) + 1);
     return status;
 }
 
