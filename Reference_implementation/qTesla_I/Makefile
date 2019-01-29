@@ -33,12 +33,27 @@ ifeq "$(DEBUG)" "TRUE"
     DFLAG=-DDEBUG
 endif
 
+MY_TARGET_NAME = "qTesla_I"
+MY_TARGET_TESTFILE_TEMPLATE = ../mytesttemplate.c
+MY_TESTFILE = tests/mytest.c
+MY_TESTEXEC_NAME = mytest_sign
+SOURCE_MYTEST = ../mytest/cpucycles.c ../mytest/speed.c $(MY_TESTFILE)
+
 OBJECTS_I = objs_I/sign.o objs_I/pack.o objs_I/sample.o objs_I/gauss.o objs_I/poly.o objs_I/consts.o objs/fips202.o objs/random.o
 SOURCE_TEST = tests/cpucycles.c tests/test_qtesla.c
 SOURCE_KATS_GEN  = tests/rng.c tests/PQCgenKAT_sign.c
 SOURCE_KATS_TEST = tests/rng.c tests/PQCtestKAT_sign.c
 
-all: lib_I tests
+all: lib_I tests mycp
+
+mycp:
+	cp $(MY_TARGET_TESTFILE_TEMPLATE) $(MY_TESTFILE)
+
+mytest: mycp
+	$(CC) $(CFLAGS) -L./lib_I -D _qTESLA_I_ -DSCHEME_NAME=\"$(MY_TARGET_NAME)\" $(SOURCE_MYTEST) $(DFLAG) -lqtesla $(LDFLAGS) -o $(MY_TESTEXEC_NAME) $(ARM_SETTING)
+
+clean_mytest:
+	rm $(MY_TESTEXEC_NAME) $(MY_TESTFILE)
 
 objs_I/%.o: %.c
 	@mkdir -p $(@D)
@@ -58,12 +73,12 @@ lib_I: $(OBJECTS_I)
 	$(AR) lib_I/libqtesla.a $^
 	$(RANLIB) lib_I/libqtesla.a
 
-tests: lib_I
+tests: lib_I mycp mytest
 	$(CC) $(CFLAGS) -L./lib_I -D _qTESLA_I_ $(SOURCE_TEST) $(DFLAG) -lqtesla $(LDFLAGS) -o test_qtesla-I $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./lib_I -D _qTESLA_I_ $(SOURCE_KATS_GEN) $(DFLAG) -lqtesla $(LDFLAGS) -o PQCgenKAT_sign-I $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./lib_I -D _qTESLA_I_ $(SOURCE_KATS_TEST) $(DFLAG) -lqtesla $(LDFLAGS) -o PQCtestKAT_sign-I $(ARM_SETTING)
 
 .PHONY: clean
 
-clean:
+clean: clean_mytest
 	rm -rf objs* lib* test_qtesla-* PQCgenKAT_sign-* PQCtestKAT_sign-* PQCsignKAT_qTesla*
