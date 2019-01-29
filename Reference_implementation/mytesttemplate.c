@@ -3,6 +3,7 @@
 #include <string.h>
 #include "../random/random.h"
 #include "../../mytest/cpucycles.h"
+#include "../../mytest/speed.h"
 #include "../api.h"
 #include "../poly.h"
 #include "../pack.h"
@@ -201,92 +202,115 @@ int mycryptotest_sign()
     return status;
 }
 
-/* int mycryptorun_pke() */
-/* { */
-    /* unsigned int i; */
-    /* unsigned char sk[MYCRYPTO_SK_LENGTH] = {0}; */
-    /* unsigned char pk[MYCRYPTO_PK_LENGTH] = {0}; */
-    /* bool status = true; */
+int mycryptorun_sign()
+{
+    unsigned int i = 0;
+    unsigned char sk[MYCRYPTO_SK_LENGTH] = {0};
+    unsigned char pk[MYCRYPTO_PK_LENGTH] = {0};
+    bool status = true;
 
-    /* unsigned int encTimes = (strlen(TEST_JSON_PLAINTEXT) + 1) / MYCRYPTO_MSG_LENGTH + 1; */
-    /* unsigned int myMsgLen = encTimes * MYCRYPTO_MSG_LENGTH; */
-    /* unsigned int myCtLen = encTimes * MYCRYPTO_CIPHER_MSG_LENGTH; */
-    /* unsigned int encdecIdx = 0; */
+    unsigned int encTimes = (strlen(TEST_JSON_PLAINTEXT) + 1) / MYCRYPTO_MSG_LENGTH + 1;
+    unsigned int myMsgLen = encTimes * MYCRYPTO_MSG_LENGTH;
+    unsigned int myCtLen = encTimes * MYCRYPTO_CIPHER_MSG_LENGTH;
+    unsigned long long ctLen = 0, mLen = 0, allCtLen = 0;
+    unsigned int encdecIdx = 0;
 
-    /* unsigned char* myMsg = NULL; */
-    /* unsigned char* myMsg_ = NULL; */
-    /* unsigned char* myCt = NULL; */
+    unsigned char* myMsg = NULL;
+    unsigned char* myMsg_ = NULL;
+    unsigned char* myCt = NULL;
+    unsigned long long* myCtLens = NULL;
+    int valid = 0;
 
-    /* unsigned long long tkeygen[TEST_LOOPS], tsign[TEST_LOOPS], tverify[TEST_LOOPS]; */
-    /* timing_overhead = cpucycles_overhead(); */
+    unsigned long long tkeygen[TEST_LOOPS], tsign[TEST_LOOPS], tverify[TEST_LOOPS];
+    timing_overhead = cpucycles_overhead();
 
-    /* if (NULL == (myMsg = (unsigned char*)calloc(myMsgLen, sizeof(unsigned char))) || */
-        /* NULL == (myMsg_ = (unsigned char*)calloc(myMsgLen, sizeof(unsigned char))) || */
-        /* NULL == (myCt = (unsigned char*)calloc(myCtLen, sizeof(unsigned char)))) { */
-        /* printf("Cannot get the memory\n"); */
-        /* return false; */
-    /* } */
+    if (NULL == (myMsg = (unsigned char*)calloc(myMsgLen, sizeof(unsigned char))) ||
+        NULL == (myMsg_ = (unsigned char*)calloc(myMsgLen, sizeof(unsigned char))) ||
+        NULL == (myCt = (unsigned char*)calloc(myCtLen, sizeof(unsigned char))) ||
+        NULL == (myCtLens = (unsigned long long*)calloc(encTimes, sizeof(unsigned long long)))) {
+        printf("Cannot get the memory\n");
+        return false;
+    }
 
-    /* printf("\n\nTESTING ISOGENY-BASED PUBLIC KEY ENCRYPTION %s\n", SCHEME_NAME); */
-    /* printf("--------------------------------------------------------------------------------------------------------\n\n"); */
+    printf("\n\nTESTING SIGN %s\n", SCHEME_NAME);
+    printf("--------------------------------------------------------------------------------------------------------\n\n");
 
-    /* for (i = 0; i < TEST_LOOPS; i++) */
-    /* { */
-        /* memset(myMsg, 0, myMsgLen); */
-        /* memset(myMsg_, 0, myMsgLen); */
-        /* memset(myCt, 0, myCtLen); */
+    for (i = 0; i < TEST_LOOPS; i++)
+    {
+        memset(myMsg, 0, myMsgLen);
+        memset(myMsg_, 0, myMsgLen);
+        memset(myCt, 0, myCtLen);
+        memset(myCtLens, 0, encTimes);
 
-        /* snprintf((char*)myMsg, myMsgLen, TEST_JSON_PLAINTEXT); */
+        snprintf((char*)myMsg, myMsgLen, TEST_JSON_PLAINTEXT);
 
-        /* printf("start genkey\n"); */
-        /* tkeygen[i] = cpucycles_start(); */
-        /* mypke_keypair(pk, sk); */
-        /* tkeygen[i] = cpucycles_stop() - tkeygen[i] - timing_overhead; */
+        printf("start genkey\n");
+        tkeygen[i] = cpucycles_start();
+        crypto_sign_keypair(pk, sk);
+        tkeygen[i] = cpucycles_stop() - tkeygen[i] - timing_overhead;
 
-        /* printf("start encrypt\n"); */
-        /* tsign[i] = cpucycles_start(); */
-        /* for (encdecIdx = 0; encdecIdx < encTimes; encdecIdx++) { */
-            /* mypke_enc(myCt + encdecIdx * MYCRYPTO_CIPHER_MSG_LENGTH, myMsg + encdecIdx * MYCRYPTO_MSG_LENGTH, pk); */
-        /* } */
-        /* tsign[i] = cpucycles_stop() - tsign[i] - timing_overhead; */
+        printf("start encrypt\n");
+        tsign[i] = cpucycles_start();
+        for (encdecIdx = 0; encdecIdx < encTimes; encdecIdx++) {
+            crypto_sign(myCt + encdecIdx * MYCRYPTO_CIPHER_MSG_LENGTH,
+                        &myCtLens[encdecIdx],
+                        myMsg + encdecIdx * MYCRYPTO_MSG_LENGTH,
+                        MYCRYPTO_MSG_LENGTH,
+                        sk);
+        }
+        tsign[i] = cpucycles_stop() - tsign[i] - timing_overhead;
 
-        /* printf("start decrypt\n"); */
-        /* tverify[i] = cpucycles_start(); */
-        /* for (encdecIdx = 0; encdecIdx < encTimes; encdecIdx++) { */
-            /* mypke_dec(myMsg_ + encdecIdx * MYCRYPTO_MSG_LENGTH, myCt + encdecIdx * MYCRYPTO_CIPHER_MSG_LENGTH, sk); */
-        /* } */
-        /* tverify[i] = cpucycles_stop() - tverify[i] - timing_overhead; */
+        printf("start decrypt\n");
+        tverify[i] = cpucycles_start();
+        for (encdecIdx = 0; encdecIdx < encTimes; encdecIdx++) {
+            crypto_sign_open(myMsg_ + encdecIdx * MYCRYPTO_MSG_LENGTH,
+                             &mLen,
+                             myCt + encdecIdx * MYCRYPTO_CIPHER_MSG_LENGTH,
+                             myCtLens[encdecIdx],
+                             pk);
+        }
+        tverify[i] = cpucycles_stop() - tverify[i] - timing_overhead;
 
-        /* if (memcmp(myMsg, myMsg_, myMsgLen) != 0) { */
-            /* status = false; */
-            /* break; */
-        /* } */
-    /* } */
+#ifdef JAYPAN_DEBUG
+        printf("after decrypt %s\n", (char*)myMsg_);
+#endif
 
-    /* if (myMsg) { */
-        /* free(myMsg); */
-    /* } */
-    /* if (myMsg_) { */
-        /* free(myMsg_); */
-    /* } */
-    /* if (myCt) { */
-        /* free(myCt); */
-    /* } */
+        if (memcmp(myMsg, myMsg_, myMsgLen) != 0) {
+            status = false;
+            break;
+        }
+        for (encdecIdx = 0; encdecIdx < encTimes; encdecIdx++) {
+            allCtLen += myCtLens[encdecIdx];
+        }
+    }
 
-    /* if (status != true) { */
-        /* printf("  SIGN tests ... FAILED\n"); */
-        /* return status; */
-    /* } */
+    if (myMsg) {
+        free(myMsg);
+    }
+    if (myMsg_) {
+        free(myMsg_);
+    }
+    if (myCt) {
+        free(myCt);
+    }
+    if (myCtLens) {
+        free(myCtLens);
+    }
 
-    /* printf("  SIGN tests .................................................... PASSED\n"); */
+    if (status != true) {
+        printf("  SIGN tests ... FAILED\n");
+        return status;
+    }
 
-    /* print_results("keygen:", tkeygen, TEST_LOOPS); */
-    /* print_results("sign: ", tsign, TEST_LOOPS); */
-    /* print_results("verify: ", tverify, TEST_LOOPS); */
-    /* printf("average length: %u\n", myCtLen); */
+    printf("  SIGN tests .................................................... PASSED\n");
+    print_results("keygen:", tkeygen, TEST_LOOPS);
+    print_results("sign: ", tsign, TEST_LOOPS);
+    print_results("verify: ", tverify, TEST_LOOPS);
+    printf("average length: %llu\n", allCtLen / TEST_LOOPS);
+    printf("average length: %u\n", myCtLen);
 
-    /* return status; */
-/* } */
+    return status;
+}
 
 int main(void)
 {
@@ -303,11 +327,11 @@ int main(void)
         return -1;
     }
 
-    /* status = mycryptorun_pke(); */
-    /* if (status != true) { */
-        /* printf("\n\n     Error detected: KEM_ERROR \n\n"); */
-        /* return -1; */
-    /* } */
+    status = mycryptorun_sign();
+    if (status != true) {
+        printf("\n\n     Error detected: KEM_ERROR \n\n");
+        return -1;
+    }
 
     return 0;
 }
