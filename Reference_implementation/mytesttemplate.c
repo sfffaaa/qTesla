@@ -22,7 +22,7 @@
 #define NTESTS 50
 
 #ifndef SCHEME_NAME
-	#error "SCHEMA_NAME should be setup"
+    #error "SCHEMA_NAME should be setup"
 #endif
 
 #define MYCRYPTO_SK_LENGTH CRYPTO_SECRETKEYBYTES
@@ -96,84 +96,110 @@ int mycryptotest_easy_sign()
     return status;
 }
 
-/* int mycryptotest_pke() */
-/* { */
-    /* unsigned int i = 0; */
-    /* unsigned char sk[MYCRYPTO_SK_LENGTH] = {0}; */
-    /* unsigned char pk[MYCRYPTO_PK_LENGTH] = {0}; */
-    /* bool status = true; */
+int mycryptotest_sign()
+{
+    unsigned int i = 0;
+    unsigned char sk[MYCRYPTO_SK_LENGTH] = {0};
+    unsigned char pk[MYCRYPTO_PK_LENGTH] = {0};
+    bool status = true;
 
-    /* unsigned int encTimes = (strlen(TEST_JSON_PLAINTEXT) + 1) / MYCRYPTO_MSG_LENGTH + 1; */
-    /* unsigned int myMsgLen = encTimes * MYCRYPTO_MSG_LENGTH; */
-    /* unsigned int myCtLen = encTimes * MYCRYPTO_CIPHER_MSG_LENGTH; */
-    /* unsigned int encdecIdx = 0; */
+    unsigned int encTimes = (strlen(TEST_JSON_PLAINTEXT) + 1) / MYCRYPTO_MSG_LENGTH + 1;
+    unsigned int myMsgLen = encTimes * MYCRYPTO_MSG_LENGTH;
+    unsigned int myCtLen = encTimes * MYCRYPTO_CIPHER_MSG_LENGTH;
+    unsigned long long ctLen = 0, mLen = 0;
+    unsigned int encdecIdx = 0;
 
-    /* unsigned char* myMsg = NULL; */
-    /* unsigned char* myMsg_ = NULL; */
-    /* unsigned char* myCt = NULL; */
+    unsigned char* myMsg = NULL;
+    unsigned char* myMsg_ = NULL;
+    unsigned char* myCt = NULL;
+    unsigned long long* myCtLens = NULL;
+    int valid = 0;
 
-    /* if (NULL == (myMsg = (unsigned char*)calloc(myMsgLen, sizeof(unsigned char))) || */
-        /* NULL == (myMsg_ = (unsigned char*)calloc(myMsgLen, sizeof(unsigned char))) || */
-        /* NULL == (myCt = (unsigned char*)calloc(myCtLen, sizeof(unsigned char)))) { */
-        /* printf("Cannot get the memory\n"); */
-        /* return false; */
-    /* } */
+    if (NULL == (myMsg = (unsigned char*)calloc(myMsgLen, sizeof(unsigned char))) ||
+        NULL == (myMsg_ = (unsigned char*)calloc(myMsgLen, sizeof(unsigned char))) ||
+        NULL == (myCt = (unsigned char*)calloc(myCtLen, sizeof(unsigned char))) ||
+        NULL == (myCtLens = (unsigned long long*)calloc(encTimes, sizeof(unsigned long long)))) {
+        printf("Cannot get the memory\n");
+        return false;
+    }
 
-    /* printf("\n\nTESTING KYBER PUBLIC KEY ENCRYPTION %s\n", SCHEME_NAME); */
-    /* printf("--------------------------------------------------------------------------------------------------------\n\n"); */
+    printf("\n\nTESTING SIGN %s\n", SCHEME_NAME);
+    printf("--------------------------------------------------------------------------------------------------------\n\n");
 
-    /* for (i = 0; i < TEST_LOOPS; i++) */
-    /* { */
-        /* memset(myMsg, 0, myMsgLen); */
-        /* memset(myMsg_, 0, myMsgLen); */
-        /* memset(myCt, 0, myCtLen); */
+    for (i = 0; i < TEST_LOOPS; i++)
+    {
+        memset(myMsg, 0, myMsgLen);
+        memset(myMsg_, 0, myMsgLen);
+        memset(myCt, 0, myCtLen);
+        memset(myCtLens, 0, encTimes);
 
-        /* snprintf((char*)myMsg, myMsgLen, TEST_JSON_PLAINTEXT); */
+        snprintf((char*)myMsg, myMsgLen, TEST_JSON_PLAINTEXT);
 
-/* #ifdef JAYPAN_DEBUG */
-        /* printf("start test %d\n", i); */
-/* #endif */
-        /* mypke_keypair(pk, sk); */
-/* #ifdef JAYPAN_DEBUG */
-        /* printf("start encrypt\n"); */
-/* #endif */
-        /* for (encdecIdx = 0; encdecIdx < encTimes; encdecIdx++) { */
-            /* mypke_enc(myCt + encdecIdx * MYCRYPTO_CIPHER_MSG_LENGTH, myMsg + encdecIdx * MYCRYPTO_MSG_LENGTH, pk); */
-        /* } */
-/* #ifdef JAYPAN_DEBUG */
-        /* printf("after encrypt %s\n", (char*)myMsg); */
-/* #endif */
-        /* for (encdecIdx = 0; encdecIdx < encTimes; encdecIdx++) { */
-            /* mypke_dec(myMsg_ + encdecIdx * MYCRYPTO_MSG_LENGTH, myCt + encdecIdx * MYCRYPTO_CIPHER_MSG_LENGTH, sk); */
-        /* } */
-/* #ifdef JAYPAN_DEBUG */
-        /* printf("after decrypt %s\n", (char*)myMsg_); */
-/* #endif */
+#ifdef JAYPAN_DEBUG
+        printf("start test %d\n", i);
+#endif
+        crypto_sign_keypair(pk, sk);
+#ifdef JAYPAN_DEBUG
+        printf("start encrypt\n");
+#endif
+        for (encdecIdx = 0; encdecIdx < encTimes; encdecIdx++) {
+            crypto_sign(myCt + encdecIdx * MYCRYPTO_CIPHER_MSG_LENGTH,
+                        &myCtLens[encdecIdx],
+                        myMsg + encdecIdx * MYCRYPTO_MSG_LENGTH,
+                        MYCRYPTO_MSG_LENGTH,
+                        sk);
+        }
+#ifdef JAYPAN_DEBUG
+        printf("after encrypt %s\n", (char*)myMsg);
+#endif
+        for (encdecIdx = 0; encdecIdx < encTimes; encdecIdx++) {
+            valid = crypto_sign_open(myMsg_ + encdecIdx * MYCRYPTO_MSG_LENGTH,
+                                     &mLen,
+                                     myCt + encdecIdx * MYCRYPTO_CIPHER_MSG_LENGTH,
+                                     myCtLens[encdecIdx],
+                                     pk);
+            if (valid != 0) {
+                printf("Signature verification FAILED. \n");
+                status = false;
+                break;
+            } else if (mLen != MLEN) {
+                printf("crypto_sign_open returned BAD message length. \n");
+                status = false;
+                break;
+            }
+        }
 
-        /* if (memcmp(myMsg, myMsg_, myMsgLen) != 0) { */
-            /* status = false; */
-            /* break; */
-        /* } */
-    /* } */
+#ifdef JAYPAN_DEBUG
+        printf("after decrypt %s\n", (char*)myMsg_);
+#endif
 
-    /* if (myMsg) { */
-        /* free(myMsg); */
-    /* } */
-    /* if (myMsg_) { */
-        /* free(myMsg_); */
-    /* } */
-    /* if (myCt) { */
-        /* free(myCt); */
-    /* } */
+        if (memcmp(myMsg, myMsg_, myMsgLen) != 0) {
+            status = false;
+            break;
+        }
+    }
 
-    /* if (status != true) { */
-        /* printf("  PKE tests ... FAILED\n"); */
-        /* return status; */
-    /* } */
+    if (myMsg) {
+        free(myMsg);
+    }
+    if (myMsg_) {
+        free(myMsg_);
+    }
+    if (myCt) {
+        free(myCt);
+    }
+    if (myCtLens) {
+        free(myCtLens);
+    }
 
-    /* printf("  PKE tests .................................................... PASSED\n"); */
-    /* return status; */
-/* } */
+    if (status != true) {
+        printf("  SIGN tests ... FAILED\n");
+        return status;
+    }
+
+    printf("  SIGN tests .................................................... PASSED\n");
+    return status;
+}
 
 /* int mycryptorun_pke() */
 /* { */
@@ -248,11 +274,11 @@ int mycryptotest_easy_sign()
     /* } */
 
     /* if (status != true) { */
-        /* printf("  PKE tests ... FAILED\n"); */
+        /* printf("  SIGN tests ... FAILED\n"); */
         /* return status; */
     /* } */
 
-    /* printf("  PKE tests .................................................... PASSED\n"); */
+    /* printf("  SIGN tests .................................................... PASSED\n"); */
 
     /* print_results("keygen:", tkeygen, TEST_LOOPS); */
     /* print_results("sign: ", tsign, TEST_LOOPS); */
@@ -267,19 +293,19 @@ int main(void)
     int status = -1;
     status = mycryptotest_easy_sign();
     if (status != true) {
-        printf("\n\n     Error detected: KEM_ERROR_PKE \n\n");
+        printf("\n\n     Error detected: SIGN_ERROR \n\n");
         return -1;
     }
 
-/*     status = mycryptotest_pke(); */
-    /* if (status != true) { */
-        /* printf("\n\n     Error detected: KEM_ERROR_PKE \n\n"); */
-        /* return -1; */
-    /* } */
+    status = mycryptotest_sign();
+    if (status != true) {
+        printf("\n\n     Error detected: SIGN_ERROR \n\n");
+        return -1;
+    }
 
     /* status = mycryptorun_pke(); */
     /* if (status != true) { */
-        /* printf("\n\n     Error detected: KEM_ERROR_PKE \n\n"); */
+        /* printf("\n\n     Error detected: KEM_ERROR \n\n"); */
         /* return -1; */
     /* } */
 
