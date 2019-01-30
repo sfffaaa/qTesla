@@ -1,5 +1,7 @@
 # Lattice-based digital signature scheme **qTESLA**
 
+**Jay**: The test for measuring the time of key generation/the time of sign json plaintext/the time of sign open the json plaintext/length of cipher message is added. And I also add the template test file which will copy to each signature scheme for implementating test cases easly.
+
 This is the software package of the post-quantum lattice-based digital signature
 scheme **qTESLA** for the NIST Post-Quantum Cryptography Standardization project. 
 
